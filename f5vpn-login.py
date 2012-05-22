@@ -1072,7 +1072,7 @@ Cookie: MRHSession=%s\r
 
 
 def usage(exename, s):
-    print >>s, "Usage: %s [--dont-check-certificates] [--{http,socks5}-proxy=host:port] [[user@]host]" % exename
+    print >>s, "Usage: %s [--dont-check-certificates] [--client-certificate=file] [--{http,socks5}-proxy=host:port] [[user@]host]" % exename
 
 def get_prefs():
     try:
@@ -1120,7 +1120,7 @@ def main(argv):
     user = getpass.getuser()
 
     try:
-        opts,args=getopt.getopt(argv[1:], "", ['verbose', 'http-proxy=', 'socks5-proxy=', 'dont-check-certificates', 'client-cert=', 'client-key='])
+        opts,args=getopt.getopt(argv[1:], "", ['verbose', 'http-proxy=', 'socks5-proxy=', 'dont-check-certificates', 'client-certificate=', 'client-certificate-key='])
     except getopt.GetoptError, e:
         sys.stderr.write("Unknown option: %s\n" % e.opt)
         usage(argv[0], sys.stderr)
@@ -1169,9 +1169,9 @@ def main(argv):
             sys.stderr.write("Using proxy: %r\n" % (proxy_addr,))
         elif opt == '--dont-check-certificates':
             check_certificates = False
-        elif opt == '--client-cert':
+        elif opt == '--client-certificate':
             ssl_client_certfile = val
-        elif opt == '--client-key':
+        elif opt == '--client-certificate-key':
             ssl_client_keyfile = val
     if check_certificates:
         # Updates global ssl_cert_path
