@@ -53,6 +53,11 @@ except ImportError:
 # File that contains certificates to use
 ssl_cert_path = None
 
+# File that contains client certificate
+ssl_client_certfile = None
+# File that contains client private key
+ssl_client_keyfile = None
+
 proxy_addr = None
 
 try:
@@ -61,15 +66,21 @@ try:
 
     def sslwrap(hostname, s):
         try:
+            params = {}
+            if ssl_client_certfile is not None:
+                params["certfile"] = ssl_client_certfile
+                if ssl_client_keyfile is not None:
+                    params["keyfile"] = ssl_client_keyfile
+
             if ssl_cert_path is not None:
                 ssl_sock = sslmodule.wrap_socket(s, cert_reqs=sslmodule.CERT_REQUIRED,
-                                                 ca_certs=ssl_cert_path)
+                                                 ca_certs=ssl_cert_path, **params)
                 ssl_sock.do_handshake()
                 verify_certificate_host(ssl_sock.getpeercert(),
                                         ssl_sock.getpeername()[0], hostname)
 
             else:
-                ssl_sock = sslmodule.wrap_socket(s)
+                ssl_sock = sslmodule.wrap_socket(s, **params)
                 ssl_sock.do_handshake()
         except sslmodule.SSLError, e:
             if 'SSL3_GET_SERVER_CERTIFICATE:certificate verify failed' in str(e):
@@ -508,6 +519,10 @@ def send_request(host, request):
     ip, port = parse_hostport(host, 443)
     s = proxy_connect(ip, port)
     ssl = sslwrap(ip, s)
+
+    if verbosity >= 2:
+        print >>sys.stderr, "\n".join([">>> " + l for l in request.splitlines()])
+
     ssl.write(request)
     data = ''
     while 1:
@@ -516,9 +531,14 @@ def send_request(host, request):
             if not newdata:
                 break
             data += newdata
-        except (socket.error, socket.sslerror):
+        except (socket.error, socket.sslerror), e:
+            if verbosity:
+                print >>sys.stderr, "send_request: %s" % e
             break
-    #print data
+
+    if verbosity >= 2:
+        print >>sys.stderr, "\n".join(["<<< " + l for l in data.splitlines()])
+
     return data
 
 def get_vpn_client_data(host):
@@ -579,7 +599,7 @@ Content-Length: %(len)d\r
     if session is None:
         pat = re.compile('<font color=red>(.*?)</font>', re.MULTILINE)
         for match in pat.finditer(result):
-            sys.stderr.write(match + '\n')
+            sys.stderr.write(match.group(1) + '\n')
             return None
 
         match = re.search("(Challenge: [^<]*)", result)
@@ -608,14 +628,12 @@ Host: %(host)s\r
     result = send_request(host, request)
     match = re.search('<favorite id="Z=([^"]*)">', result)
     if match:
-        menu_number = match.group(1)
-        result = send_request(host, request)
         return match.group(1)
-    else:
-        if re.search('^Location: /my.logon.php3', result):
-            # a redirect to the login page.
-            sys.stderr.write("Old session no longer valid.\n")
-        return None
+
+    if re.search('^Location: /my.logon.php3', result):
+        # a redirect to the login page.
+        sys.stderr.write("Old session no longer valid.\n")
+    return None
 
 def get_VPN_params(host, session, menu_number):
     request = """GET /vdesk/vpn/connect.php3?Z=%(menu_number)s HTTP/1.0\r
@@ -1079,7 +1097,9 @@ def write_prefs(line):
 #      various architectures.
 
 def main(argv):
-    global proxy_addr
+    global proxy_addr, verbosity
+    global ssl_client_certfile, ssl_client_keyfile
+
     if '--help' in argv:
         usage(argv[0], sys.stdout)
         sys.exit(0)
@@ -1100,7 +1120,7 @@ def main(argv):
     user = getpass.getuser()
 
     try:
-        opts,args=getopt.getopt(argv[1:], "", ['verbose', 'http-proxy=', 'socks5-proxy=', 'dont-check-certificates'])
+        opts,args=getopt.getopt(argv[1:], "", ['verbose', 'http-proxy=', 'socks5-proxy=', 'dont-check-certificates', 'client-cert=', 'client-key='])
     except getopt.GetoptError, e:
         sys.stderr.write("Unknown option: %s\n" % e.opt)
         usage(argv[0], sys.stderr)
@@ -1131,12 +1151,12 @@ def main(argv):
     else:
         host = userhost
 
-    verbosity = False
+    verbosity = 0
     check_certificates = True
 
     for opt,val in opts:
         if opt == '--verbose':
-            verbosity = True
+            verbosity += 1
         elif opt == '--http-proxy':
             proxy_addr = ('http',) + parse_hostport(val)
             sys.stderr.write("Using proxy: %r\n" % (proxy_addr,))
@@ -1149,7 +1169,10 @@ def main(argv):
             sys.stderr.write("Using proxy: %r\n" % (proxy_addr,))
         elif opt == '--dont-check-certificates':
             check_certificates = False
-
+        elif opt == '--client-cert':
+            ssl_client_certfile = val
+        elif opt == '--client-key':
+            ssl_client_keyfile = val
     if check_certificates:
         # Updates global ssl_cert_path
         find_certificates_file()
