@@ -31,6 +31,7 @@ CERTIFICATE_FILE_LOCATIONS = [
     '/etc/pki/tls/certs/ca-bundle.crt', # New redhat
     '/usr/share/ssl/certs/ca-bundle.crt', # Old redhat
     '/etc/ssl/cert.pem', # FreeBSD
+    '/etc/ssl/ca-bundle.pem', # openSUSE
     # Your OS goes here? Email me if you know of more places to look...
 
     # Other paths I've seen mentioned on teh internets, what the heck, can't hurt
