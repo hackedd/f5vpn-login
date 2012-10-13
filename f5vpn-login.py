@@ -31,6 +31,7 @@ CERTIFICATE_FILE_LOCATIONS = [
     '/etc/pki/tls/certs/ca-bundle.crt', # New redhat
     '/usr/share/ssl/certs/ca-bundle.crt', # Old redhat
     '/etc/ssl/cert.pem', # FreeBSD
+    '/etc/ssl/ca-bundle.pem', # openSUSE
     # Your OS goes here? Email me if you know of more places to look...
 
     # Other paths I've seen mentioned on teh internets, what the heck, can't hurt
@@ -1023,7 +1024,7 @@ Cookie: MRHSession=%s\r
         # Run pppd
         args = ['pppd', 'logfd', '4', 'noauth', 'nodetach',
                 'crtscts', 'passive', 'ipcp-accept-local', 'ipcp-accept-remote',
-                'local', 'nodeflate', 'novj', ]
+                'local', 'nodeflate', 'novj', 'idle', '0', ]
 
         if override_gateway:
             args.append('defaultroute')
